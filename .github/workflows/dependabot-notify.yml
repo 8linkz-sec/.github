@@ -1,0 +1,33 @@
+name: Dependabot PR Notification
+
+on:
+  workflow_call:
+    secrets:
+      DISCORD_DEP:
+        required: true
+
+jobs:
+  notify-discord:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Discord Notification
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_URL="${{ github.event.pull_request.html_url }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          REPO_NAME="${{ github.repository }}"
+
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "{
+                 \"embeds\": [{
+                   \"title\": \"📦 Dependabot PR #${PR_NUMBER}\",
+                   \"description\": \"**${PR_TITLE}**\",
+                   \"url\": \"${PR_URL}\",
+                   \"color\": 2201331,
+                   \"fields\": [
+                     {\"name\": \"Repository\", \"value\": \"\`${REPO_NAME}\`\", \"inline\": true}
+                   ]
+                 }]
+               }" \
+               "${{ secrets.DISCORD_DEP }}"
