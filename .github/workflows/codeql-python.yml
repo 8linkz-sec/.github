@@ -1,0 +1,41 @@
+name: CodeQL Python Analysis
+
+on:
+  workflow_call:
+    secrets:
+      DISCORD_VULN:
+        required: true
+
+jobs:
+  codeql:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+      - name: Perform Analysis
+        id: codeql
+        uses: github/codeql-action/analyze@v3
+        continue-on-error: true
+      - name: Discord Alert
+        if: steps.codeql.outcome == 'failure'
+        run: |
+          REPO_NAME="${{ github.repository }}"
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "{
+                 \"embeds\": [{
+                   \"title\": \"🔍 CodeQL found issues\",
+                   \"description\": \"Code analysis found potential security issues in \`${REPO_NAME}\`\",
+                   \"color\": 15548997,
+                   \"fields\": [
+                     {\"name\": \"Details\", \"value\": \"Check the Security tab in the repo for full results.\"}
+                   ]
+                 }]
+               }" \
+               "${{ secrets.DISCORD_VULN }}"
