@@ -2,6 +2,9 @@ name: Go Vulnerability Check
 
 on:
   workflow_call:
+    secrets:
+      DISCORD_VULN:
+        required: true
 
 jobs:
   govulncheck:
@@ -16,4 +19,24 @@ jobs:
       - name: Install govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
       - name: Run govulncheck
-        run: govulncheck ./...
+        id: vulncheck
+        run: govulncheck ./... 2>&1 | tee vulncheck-output.txt
+        continue-on-error: true
+      - name: Discord Alert
+        if: steps.vulncheck.outcome == 'failure'
+        run: |
+          REPO_NAME="${{ github.repository }}"
+          OUTPUT=$(head -c 1000 vulncheck-output.txt)
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "{
+                 \"embeds\": [{
+                   \"title\": \"⚠️ Vulnerability found\",
+                   \"description\": \"govulncheck found issues in \`${REPO_NAME}\`\",
+                   \"color\": 15548997,
+                   \"fields\": [
+                     {\"name\": \"Output\", \"value\": \"\`\`\`\\n${OUTPUT}\\n\`\`\`\"}
+                   ]
+                 }]
+               }" \
+               "${{ secrets.DISCORD_VULN }}"
